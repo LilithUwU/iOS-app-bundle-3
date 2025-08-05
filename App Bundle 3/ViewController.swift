@@ -1,118 +1,106 @@
-//
-//  ViewController.swift
-//  App Bundle 3
-//
-//  Created by lilit on 30.07.25.
-//
 import UIKit
 
 
-class ViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+class ViewController: UIViewController {
 
-    var images: [UIImage] = []
-    var config: AppConfiguration?
+    private var appConfig: AppConfig?
 
-    private let titleLabel: UILabel = {
+    private func makeLabel(fontSize: CGFloat, weight: UIFont.Weight, textColor: UIColor) -> UILabel {
         let label = UILabel()
+        label.font = UIFont.systemFont(ofSize: fontSize, weight: weight)
+        label.textColor = textColor
+        label.textAlignment = .center
         label.numberOfLines = 0
-        label.textAlignment = .center
-        label.font = UIFont.systemFont(ofSize: 24)
-        label.translatesAutoresizingMaskIntoConstraints = false
         return label
-    }()
+    }
 
+    private lazy var titleLabel = makeLabel(fontSize: 34, weight: .bold, textColor: .label)
+    private lazy var descriptionLabel = makeLabel(fontSize: 17, weight: .regular, textColor: .secondaryLabel)
 
-    private let welcomeLabel: UILabel = {
-        let label = UILabel()
-        label.textAlignment = .center
-        label.font = UIFont.systemFont(ofSize: 18)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-
-    private lazy var collectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 10
-        layout.minimumInteritemSpacing = 10
-
-        let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collection.translatesAutoresizingMaskIntoConstraints = false
-        collection.backgroundColor = .clear
-        collection.dataSource = self
-        collection.delegate = self
-        collection.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
-        return collection
+    private let imageStackView: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.spacing = 10
+        stack.alignment = .center
+        stack.distribution = .fillEqually
+        return stack
     }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemGroupedBackground
 
-        config = ConfigLoader.loadConfiguration()
-        images = ImageLoader.loadImages(maxCount: config?.numberOfImagesToDisplay ?? 5)
-
-        titleLabel.text = config?.appTitle ?? "Title"
-        welcomeLabel.text = config?.welcomeMessage ?? "Body!"
-
-        view.addSubview(titleLabel)
-        view.addSubview(welcomeLabel)
-        view.addSubview(collectionView)
-
-        setupLayout()
-        titleLabel.backgroundColor = .red.withAlphaComponent(0.2)
-        welcomeLabel.backgroundColor = .green.withAlphaComponent(0.2)
-        collectionView.backgroundColor = .blue.withAlphaComponent(0.1)
-        ConfigLoader.printJson()
-
+        setupUI()
+        loadAndApplyConfiguration()
     }
 
-    private func setupLayout() {
+    private func setupUI() {
+        view.addSubview(titleLabel)
+        view.addSubview(descriptionLabel)
+        view.addSubview(imageStackView)
+
+        [titleLabel, descriptionLabel, imageStackView].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
+
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
-            welcomeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
-            welcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            welcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            descriptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
+            descriptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            descriptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
-            collectionView.topAnchor.constraint(equalTo: welcomeLabel.bottomAnchor, constant: 20),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10)
+            imageStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            imageStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            imageStackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            imageStackView.heightAnchor.constraint(equalToConstant: 150)
         ])
     }
 
+    private func loadAndApplyConfiguration() {
+        appConfig = ConfigLoader.loadConfig()
 
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return images.count
+        guard let config = appConfig else {
+            titleLabel.text = "Error"
+            descriptionLabel.text = "Failed to load configuration."
+            return
+        }
+
+        titleLabel.text = config.appName
+        descriptionLabel.text = config.appDescription
+
+        let images = loadImages(using: config)
+        displayImages(images)
     }
 
-    func collectionView(_ collectionView: UICollectionView,
-                        cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cell", for: indexPath)
-
-        cell.contentView.subviews.forEach { $0.removeFromSuperview() }
-
-        let imageView = UIImageView(image: images[indexPath.item])
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        imageView.frame = cell.contentView.bounds
-        cell.contentView.addSubview(imageView)
-
-        return cell
+    private func loadImages(using config: AppConfig) -> [UIImage] {
+        let selectedNames = Array(config.imageNames.prefix(config.features.numberOfImagesToShow))
+        return selectedNames.compactMap { UIImage(named: $0) }
     }
 
+    private func displayImages(_ images: [UIImage]) {
+        imageStackView.arrangedSubviews.forEach {
+            imageStackView.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
 
-    func collectionView(_ collectionView: UICollectionView,
-                        layout collectionViewLayout: UICollectionViewLayout,
-                        sizeForItemAt indexPath: IndexPath) -> CGSize {
+        guard let config = appConfig else { return }
 
-        let padding: CGFloat = 10
-        let width = (collectionView.bounds.width - padding) / 2
-        return CGSize(width: width, height: width * 0.75)
+        for image in images {
+            let imageView = UIImageView(image: image)
+            imageView.contentMode = .scaleAspectFit
+            imageView.clipsToBounds = true
+            imageView.tintColor = .systemBlue
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+
+            NSLayoutConstraint.activate([
+                imageView.widthAnchor.constraint(equalToConstant: config.features.imageSize),
+                imageView.heightAnchor.constraint(equalToConstant: config.features.imageSize)
+            ])
+
+            imageStackView.addArrangedSubview(imageView)
+        }
     }
 }
-

@@ -1,6 +1,15 @@
 {
-  "appTitle": "Gallery",
-  "numberOfImagesToDisplay": 5,
-  "welcomeMessage": "Look at all these pictures \\(^.^)/"
+  "appName": "Gallery",
+  "appDescription": "Shown images are downloaded from Pinterest",
+  "features": {
+    "numberOfImagesToShow": 5,
+    "imageSize": 100
+  },
+  "imageNames": [
+    "image1",
+    "image2",
+    "image3",
+    "image4",
+    "image5",
+  ]
 }
-
